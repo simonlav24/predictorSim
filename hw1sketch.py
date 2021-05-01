@@ -57,6 +57,7 @@ class Predictor:
 		# parse pc (tuple), dest is list of one element [-dest-]
 		tag = pc[log(self.btbSize):log(self.btbSize) + self.tagSize]
 		entryIndex = tup2int(pc[0:log(self.btbSize)])
+		print(0, log(self.btbSize))
 		# print("predict:", "entry index:", entryIndex, "tag:", tag)
 	
 		# compare tag
@@ -183,9 +184,9 @@ class Predictor:
 		return string
 	def strLocalTable(self, index):
 		string = "["
-		for i in range(2 * (2**self.histSize)):
+		for i in range((2**self.histSize)):
 			string += state2str(self.fsmTable[index][i])
-			if not i == (2 * (2**self.histSize)) - 1:
+			if not i == ((2**self.histSize)) - 1:
 				string += ", "
 		string += "]"
 		return string
@@ -376,7 +377,7 @@ if False:
 	print(res2, DEST2)
 	print(res3, DEST3)
 
-if False: # test1
+if True: # test1
 	p = Predictor(2, 2, 26, 1, False, False, NOT_SHARED)
 	commands = []
 	commands.append([hex2pc(0x1230), False, 0x12300])	# not exists -> not taken, update fsm
@@ -402,7 +403,7 @@ if False: # test2
 	commands.append([hex2pc(0x10c), True, 0x200])	
 	commands.append([hex2pc(0x87654), False, 0x45678])
 
-if True: # test 3
+if False: # test 3
 	p = Predictor(2, 8, 26, 1, True, True, LSB_SHARED)
 	commands = []
 	commands.append([hex2pc(0x10), True, 0x20])
@@ -502,7 +503,7 @@ for c in commands:
 	print(res, end = " ")
 	print(hex(dest[0]))
 	
-	# print(p)
+	print(p)
 p.printStats()
 #TODO:
 	# predict of no updated pc

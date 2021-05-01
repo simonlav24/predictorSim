@@ -72,7 +72,7 @@ class Predictor:
 			return False
 		
 		# lookup history and get fsm index
-		histEntry = 0
+		histEntry = 0 # called fsmIndex in cpp
 		if self.isGlobHist:
 			histEntry = self.globalHist
 			fsmIndex = tup2int(self.globalHist)
@@ -96,7 +96,8 @@ class Predictor:
 		else:# local fsm table
 			# print("local fsm check")
 			taken = self.fsmTable[entryIndex][fsmIndex]
-
+		
+		# prepare taken state
 		if fsm2bool(taken):
 			dest[0] = self.targetTable[entryIndex]
 			# print("tag2")
@@ -143,7 +144,7 @@ class Predictor:
 		# UPDATE HISTORY AND FSM
 		if not self.isGlobHist:
 			
-			# fsm update
+			# history lookup
 			histIndex = tup2int(self.histTable[entryIndex])
 
 			

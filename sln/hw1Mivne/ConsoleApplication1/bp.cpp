@@ -18,8 +18,9 @@
 #define STRONGLY_TAKEN 3
 #define DEBUG if (debug) std::cout << "[DEBUG]" 
 
-bool debug = !true;
+bool debug = false;
 int debugCount{ 1 };
+
 // global variables
 int gBtbSize;
 int gHistSize;
@@ -42,11 +43,9 @@ bool* validBitTable;
 SIM_stats stats;
 
 // getRange: returns bitwise section of the num from start to end inclusive
-
-
 uint32_t getRange(uint32_t num, int start, int end) {
 	if (start > end) {
-		std::cout << "range error" << std::endl;
+		DEBUG << "range error, (" << start << ", " << end << ")" << std::endl;
 		return 0;
 	}
 	num /= pow(2, start);
@@ -56,8 +55,6 @@ uint32_t getRange(uint32_t num, int start, int end) {
 
 // calcShared: calculate shared xor ONLY IN GLOBAL HISTORY MODE
 uint32_t calcShared(uint32_t pc, uint32_t fsmIndex) {
-	//if (gShared == NOT_USING_SHARE)
-	//	fsmIndex = globalHist;
 	if (gShared == USING_SHARE_LSB) {
 		uint32_t m = getRange(pc, 2, 1 + gHistSize);
 		uint32_t h = fsmIndex;
@@ -91,11 +88,10 @@ int updateFsm(int currentFsm, bool taken) {
 		nextFsm = 0;
 	if (nextFsm > 3)
 		nextFsm = 3;
-	//DEBUG << "update fsm, taken: " << taken << " prevFSM: " << currentFsm << " nextFSM: " << nextFsm << std::endl;
 	return nextFsm;
-
 }
 
+// printP: print all predictor for debugging purposes. yes, we debug with prints...
 void printP() {
 	if (!debug)
 		return;
@@ -142,6 +138,7 @@ void printP() {
 int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned fsmState,
 			bool isGlobalHist, bool isGlobalTable, int Shared){
 	
+	// initializing global vars
 	gBtbSize = btbSize;
 	gHistSize = historySize;
 	gTagSize = tagSize;
@@ -166,7 +163,6 @@ int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned f
 		for (int i = 0; i < pow(2, gHistSize); i++)
 			globalTable[i] = gFsmState;
 	}
-
 	else
 	{
 		fsmTable = new uint32_t * [gBtbSize];
@@ -192,6 +188,7 @@ int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned f
 	targetTable = new uint32_t[gBtbSize];
 	for (int i = 0; i < gBtbSize; i++)
 		targetTable[i] = 0;
+
 	// init stats
 	stats.br_num = 0;
 	stats.flush_num = 0;
@@ -206,8 +203,6 @@ int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned f
 		stats.size += 2 * pow(2, gHistSize);
 	else
 		stats.size += 2 * pow(2, gHistSize) * gBtbSize;
-	 
-	// testing area
 
 	return 0;
 }
@@ -235,11 +230,13 @@ bool BP_predict(uint32_t pc, uint32_t *dst){
 	uint32_t fsmIndex = 0;
 	if (gIsGlobalHist) {
 		fsmIndex = globalHist;
+		DEBUG << "globalHist: " << globalHist << std::endl;
 	}
 	else {
 		fsmIndex = histTable[entryIndex];
 	}
 	DEBUG << "fsmIndex in predict = " << fsmIndex << std::endl;
+
 	// get fsm state
 	int takenState;
 	if (gIsGlobalTable) {
@@ -295,9 +292,14 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst){
 				fsmTable[entryIndex][i] = gFsmState;
 			}
 		}
-		else
-		{
-			// figure that out
+	}
+	else if (!isSameTag && gIsGlobalHist) {
+		DEBUG << "reseting fsms" << std::endl;
+		// reset fsm states
+		if (!gIsGlobalTable) {
+			for (int i = 0; i < pow(2, gHistSize); i++) {
+				fsmTable[entryIndex][i] = gFsmState;
+			}
 		}
 	}
 
@@ -310,16 +312,13 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst){
 		// get index from history
 		uint32_t fsmIndex = histTable[entryIndex];
 
-
 		// history update
-		DEBUG << "history before, taken: " << taken << " " <<  std::bitset<32>(histTable[entryIndex]) << std::endl;
 		uint32_t newHistory = histTable[entryIndex];
 		newHistory = newHistory << 1;
 		newHistory = newHistory + (int)taken;
 		uint32_t mask = pow(2, gHistSize) - 1;
 		newHistory = newHistory & mask;
 		histTable[entryIndex] = newHistory;
-		DEBUG << "history after: " << std::bitset<32>(histTable[entryIndex]) << std::endl;
 
 		// fsm update
 		if (!gIsGlobalTable)
@@ -332,18 +331,14 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst){
 	else {
 		// get index from history
 		uint32_t fsmIndex = globalHist;
-		
-		//DEBUG << "********************8hello*********************" << std::endl;
 
 		// hist update
-		DEBUG << "history before, taken: " << taken << " " << std::bitset<32>(histTable[entryIndex]) << std::endl;
 		uint32_t newHistory = globalHist;
 		newHistory = newHistory << 1;
 		newHistory = newHistory + (int)taken;
 		uint32_t mask = pow(2, gHistSize) - 1;
 		newHistory = newHistory & mask;
 		globalHist = newHistory;
-		DEBUG << "history after: " << std::bitset<32>(histTable[entryIndex]) << std::endl;
 		
 		// fsm update
 		if (!gIsGlobalTable)
@@ -354,7 +349,7 @@ void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst){
 		}
 	}
 
-	printP();
+	if (debug) printP();
 	return;
 }
 
@@ -387,4 +382,3 @@ void BP_GetStats(SIM_stats *curStats){
 
 	return;
 }
-
